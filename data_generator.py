@@ -5,21 +5,25 @@ import csv
 from faker import Faker
 import random
 import datetime
+from dotenv import load_dotenv
 
-# --- IMPORTANT ---
-# 1. Install this library: pip install mysql-connector-python
-# 2. Update the DB_CONFIG to match your MySQL user/password.
-#    (You can copy this from your app.py)
-# 3. Run this script ONCE: python data_generator.py
-# 4. Your database will be populated. You do not need import_data.sql.
-# -----------------
+# Load environment variables from .env file
+load_dotenv()
 
+# --- Retrieve variables ---
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_NAME = os.getenv("DB_NAME")
+
+# --- Database configuration (the "DB_CONFIG" equivalent) ---
 DB_CONFIG = {
-    'host': 'yamabiko.proxy.rlwy.net',
-    'user': 'root',       # <-- EDIT THIS
-    'password': 'XIuLVCbGtrYaHdtdfITHIsNPaRIBEFuL', # <-- EDIT THIS
-    'database': 'railway',
-    'port': 13138
+    "host": DB_HOST,
+    "port": DB_PORT,
+    "user": DB_USER,
+    "password": DB_PASSWORD,
+    "database": DB_NAME
 }
 
 # --- Configuration ---

@@ -5,6 +5,7 @@ from flask_cors import CORS
 import os
 import json
 from datetime import datetime
+from dotenv import load_dotenv
 
 # --- Configuration ---
 # Use 'static' as the folder to serve the frontend
@@ -12,14 +13,24 @@ STATIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static'))
 
 app = Flask(__name__, static_folder=STATIC_DIR)
 
-# --- !! IMPORTANT !! ---
-# EDIT this dictionary to match your MySQL username and password
+
+# Load environment variables from .env file
+load_dotenv()
+
+# --- Retrieve variables ---
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_NAME = os.getenv("DB_NAME")
+
+# --- Database configuration (the "DB_CONFIG" equivalent) ---
 DB_CONFIG = {
-    'host': 'mysql.railway.internal',
-    'user': 'root',       # <-- EDIT THIS
-    'password': 'XIuLVCbGtrYaHdtdfITHIsNPaRIBEFuL', # <-- EDIT THIS
-    'database': 'railway',
-    'port': 13138
+    "host": DB_HOST,
+    "port": DB_PORT,
+    "user": DB_USER,
+    "password": DB_PASSWORD,
+    "database": DB_NAME
 }
 
 # --- Database Connection Helper ---
