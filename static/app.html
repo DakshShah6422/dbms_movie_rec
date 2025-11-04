@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MovieRec</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #030712; } /* near black */
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; } /* gray-700 */
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; } /* gray-600 */
+        
+        /* Simple modal fade-in */
+        .modal {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .modal.open {
+            display: flex;
+            opacity: 1;
+        }
+
+        /* Movie Card Poster Placeholder */
+        .poster-placeholder {
+            background-color: #1f2937; /* gray-800 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4b5563; /* gray-600 */
+            height: 100%;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        /* Movie Carousel */
+        .carousel-container {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            padding-bottom: 1.5rem; /* for scrollbar */
+        }
+        .carousel-item {
+            scroll-snap-align: start;
+            flex: 0 0 auto;
+            width: 12rem; /* w-48 */
+            margin-right: 1rem; /* space-x-4 */
+        }
+        .carousel-item:last-child {
+            margin-right: 0;
+        }
+        /* Hide scrollbar, but still allow scrolling */
+        .carousel-container::-webkit-scrollbar {
+            display: none;
+        }
+        .carousel-container {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        
+        /* --- NEW: Star Rating --- */
+        .star-rating {
+            display: inline-flex;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+        .star-rating input[type="radio"] {
+            display: none;
+        }
+        .star-rating label {
+            font-size: 2.5rem; /* 40px */
+            color: #4b5563; /* gray-600 */
+            cursor: pointer;
+            transition: color 0.2s;
+            padding: 0 0.125rem; /* 2px */
+        }
+        /* When a star is checked or hovered, color it and all stars "before" (to its right) */
+        .star-rating input[type="radio"]:checked ~ label,
+        .star-rating:not(:checked) > label:hover,
+        .star-rating:not(:checked) > label:hover ~ label {
+            color: #f59e0b; /* amber-500 */
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 h-screen flex flex-col overflow-hidden">
+
+    <!-- Top Navigation -->
+    <nav class="w-full bg-gray-900 shadow-lg z-20 flex-shrink-0">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <!-- Logo & Main Nav -->
+            <div class="flex items-center space-x-8">
+                <h1 class="text-3xl font-bold">
+                    Movie<span class="text-indigo-400">Rec</span>
+                </h1>
+                <ul class="flex space-x-6">
+                    <li><a href="#" onclick="showPage('home')" class="nav-link text-lg font-semibold text-white border-b-2 border-indigo-500">Home</a></li>
+                    <li><a href="#" onclick="showPage('recommendations')" class="nav-link text-lg font-medium text-gray-400 hover:text-white border-b-2 border-transparent">My Recs</a></li>
+                    <li><a href="#" onclick="showPage('watchlist')" class="nav-link text-lg font-medium text-gray-400 hover:text-white border-b-2 border-transparent">My Watchlist</a></li>
+                </ul>
+            </div>
+            
+            <!-- Admin & User Nav -->
+            <div class="flex items-center space-x-6">
+                <!-- Admin Tools -->
+                <ul class="flex space-x-6">
+                    <li><a href="#" onclick="showPage('insert')" class="nav-link text-lg font-medium text-gray-400 hover:text-white border-b-2 border-transparent">Insert Data</a></li>
+                    <li><a href="#" onclick="showPage('query')" class="nav-link text-lg font-medium text-gray-400 hover:text-white border-b-2 border-transparent">SQL Query</a></li>
+                </ul>
+                <!-- User Profile -->
+                <div class="flex items-center space-x-3">
+                    <div id="user-initial" class="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center font-bold"></div>
+                    <span id="welcome-message" class="text-lg font-medium hidden md:block"></span>
+                    <button onclick="logout()" class="ml-4 text-gray-400 hover:text-white transition duration-300" title="Logout">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto p-10">
+        
+        <!-- Page: Home (Browse) -->
+        <div id="page-home" class="page-content">
+            <!-- Popular Movies Carousel -->
+            <h2 class="text-3xl font-bold mb-6">Popular Now</h2>
+            <div id="carousel-popular" class="carousel-container mb-12">
+                <!-- Movie cards populated by JS -->
+            </div>
+
+            <!-- Recent Movies Carousel -->
+            <h2 class="text-3xl font-bold mb-6">New Releases</h2>
+            <div id="carousel-recent" class="carousel-container mb-12">
+                <!-- Movie cards populated by JS -->
+            </div>
+
+            <!-- Full Browse Section -->
+            <h2 class="text-3xl font-bold mb-6">Browse All Movies</h2>
+            <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg shadow-xl mb-8 flex items-center space-x-4">
+                <input type="text" id="search-input" placeholder="Search by movie title..." class="flex-grow p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-indigo-500">
+                <select id="genre-select" class="p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-indigo-500 w-64">
+                    <option value="">All Genres</option>
+                    <!-- Genres populated by JS -->
+                </select>
+                <button onclick="searchMovies(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-lg transition duration-300 text-lg">Search</button>
+            </div>
+            
+            <div id="movie-list-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                <!-- Movie cards populated by JS -->
+            </div>
+        </div>
+
+        <!-- Page: Recommendations -->
+        <div id="page-recommendations" class="page-content hidden">
+            <h2 class="text-4xl font-bold mb-8">Your Personalized Recommendations</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Popular -->
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                    <h3 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Top 10 Popular Movies</h3>
+                    <p class="text-sm text-gray-400 mb-3">Global top-rated movies.</p>
+                    <ul id="rec-popular-list" class="space-y-3"></ul>
+                </div>
+                <!-- Content-Based (User) -->
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                    <h3 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">For You (Content-Based)</h3>
+                    <p class="text-sm text-gray-400 mb-3">Based on your favorite genres.</p>
+                    <ul id="rec-personal-content-list" class="space-y-3"></ul>
+                </div>
+                <!-- Collaborative (User) -->
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                    <h3 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Users Like You Liked...</h3>
+                    <p class="text-sm text-gray-400 mb-3">Based on users with similar taste.</p>
+                    <ul id="rec-personal-collab-list" class="space-y-3"></ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Page: My Watchlist (NEW) -->
+        <div id="page-watchlist" class="page-content hidden">
+            <h2 class="text-4xl font-bold mb-8">My Watchlist</h2>
+            <div id="watchlist-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                <!-- Watchlist movie cards populated by JS -->
+            </div>
+        </div>
+
+        <!-- Page: Insert Data -->
+        <div id="page-insert" class="page-content hidden">
+            <h2 class="text-4xl font-bold mb-6">Insert New Data Entry</h2>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl max-w-2xl mx-auto">
+                <div class="mb-4">
+                    <label for="table-select" class="block text-lg font-medium mb-2">Select Table</label>
+                    <select id="table-select" class="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-indigo-500"></select>
+                </div>
+                <form id="insert-form" class="space-y-4">
+                    <!-- Form fields populated by JS -->
+                </form>
+                <button onclick="submitInsert()" class="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-lg transition duration-300 text-lg">Insert Row</button>
+            </div>
+        </div>
+
+        <!-- Page: SQL Query -->
+        <div id="page-query" class="page-content hidden">
+            <h2 class="text-4xl font-bold mb-6">Run SQL Query</h2>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                <label for="query-textarea" class="block text-lg font-medium mb-2">Enter your SQL (SELECT statements only)</label>
+                <textarea id="query-textarea" rows="8" class="w-full p-3 rounded-lg bg-gray-900 text-white font-mono border border-gray-600 focus:outline-none focus:border-indigo-500" placeholder="SELECT * FROM movies WHERE release_year > 2020..."></textarea>
+                <button onclick="runQuery()" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-lg transition duration-300 text-lg">Run Query</button>
+            </div>
+            
+            <div id="query-results-container" class="mt-8 hidden">
+                <h3 class="text-2xl font-semibold mb-4">Results</h3>
+                <div class="bg-gray-800 rounded-lg shadow-xl overflow-auto">
+                    <table class="min-w-full">
+                        <thead id="query-results-head" class="bg-gray-700">
+                        </thead>
+                        <tbody id="query-results-body" class="divide-y divide-gray-700">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Movie Detail Modal -->
+    <div id="movie-detail-modal" class="modal fixed inset-0 z-50 items-center justify-center bg-black bg-opacity-75 p-4">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-gray-700">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="movie-modal-title" class="text-3xl font-bold">Movie Title</h2>
+                <button onclick="hideModal()" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+            </div>
+            <div id="movie-modal-body" class="overflow-y-auto pr-4">
+                <!-- Modal content populated by JS -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Global Notification / Message Box -->
+    <div id="notification-box" class="fixed bottom-5 right-5 z-50 bg-green-600 text-white py-3 px-6 rounded-lg shadow-lg opacity-0 transition-all duration-300 -translate-y-10">
+        <span id="notification-message"></span>
+    </div>
+
+
+    <script>
+        // --- Configuration ---
+        const API_URLS = {
+            genres: '/api/genres',
+            movies: '/api/movies',
+            movieDetails: (id, userId) => `/api/movies/${id}?user_id=${userId}`,
+            recPopular: '/api/recommendations/popular',
+            recItemContent: (id) => `/api/recommendations/content/${id}`,
+            recItemCollab: (id) => `/api/recommendations/collaborative/${id}`,
+            recPersonalContent: (id) => `/api/recommendations/personal_content?user_id=${id}`,
+            recPersonalCollab: (id) => `/api/recommendations/personal_collaborative?user_id=${id}`,
+            schema: '/api/schema',
+            insert: '/api/insert',
+            query: '/api/query',
+            watchlist: (id) => `/api/watchlist?user_id=${id}`,
+            watchlistToggle: '/api/watchlist/toggle',
+            rate: '/api/rate' // <-- NEW: Added rating endpoint
+        };
+
+        // --- State Management ---
+        const appState = {
+            currentUser: null,
+            currentSchema: null,
+            currentMovieId: null, // For modal
+        };
+
+        // --- DOM Elements ---
+        const dom = {
+            pages: document.querySelectorAll('.page-content'),
+            navLinks: document.querySelectorAll('.nav-link'),
+            welcomeMessage: document.getElementById('welcome-message'),
+            userInitial: document.getElementById('user-initial'),
+            carouselPopular: document.getElementById('carousel-popular'),
+            carouselRecent: document.getElementById('carousel-recent'),
+            movieListGrid: document.getElementById('movie-list-grid'),
+            watchlistGrid: document.getElementById('watchlist-grid'),
+            genreSelect: document.getElementById('genre-select'),
+            searchInput: document.getElementById('search-input'),
+            movieModal: document.getElementById('movie-detail-modal'),
+            movieModalTitle: document.getElementById('movie-modal-title'),
+            movieModalBody: document.getElementById('movie-modal-body'),
+            recPopularList: document.getElementById('rec-popular-list'),
+            recPersonalContentList: document.getElementById('rec-personal-content-list'),
+            recPersonalCollabList: document.getElementById('rec-personal-collab-list'),
+            tableSelect: document.getElementById('table-select'),
+            insertForm: document.getElementById('insert-form'),
+            queryTextarea: document.getElementById('query-textarea'),
+            queryResultsContainer: document.getElementById('query-results-container'),
+            queryResultsHead: document.getElementById('query-results-head'),
+            queryResultsBody: document.getElementById('query-results-body'),
+            notificationBox: document.getElementById('notification-box'),
+            notificationMessage: document.getElementById('notification-message'),
+        };
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            checkLoggedIn();
+            if (appState.currentUser) {
+                // Initial page load
+                loadGenres();
+                loadHomeCarousels(); // Load carousels
+                searchMovies(false); // Load grid but don't show it
+                loadSchema();
+                
+                // Event Listeners
+                dom.tableSelect.addEventListener('change', updateInsertForm);
+            }
+        });
+
+        // --- Auth Functions ---
+        function checkLoggedIn() {
+            const user = sessionStorage.getItem('movieUser');
+            if (!user) {
+                window.location.href = '/';
+            } else {
+                appState.currentUser = JSON.parse(user);
+                updateUIForUser();
+            }
+        }
+        
+        function updateUIForUser() {
+            dom.welcomeMessage.textContent = appState.currentUser.username;
+            dom.userInitial.textContent = appState.currentUser.username.charAt(0).toUpperCase();
+        }
+
+        function logout() {
+            sessionStorage.removeItem('movieUser');
+            showNotification("Logged out successfully. Redirecting...");
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1500);
+        }
+        
+        // --- Page Navigation ---
+        function showPage(pageId) {
+            dom.pages.forEach(page => page.classList.add('hidden'));
+            document.getElementById(`page-${pageId}`).classList.remove('hidden');
+            
+            dom.navLinks.forEach(link => {
+                link.classList.remove('text-white', 'border-indigo-500');
+                link.classList.add('text-gray-400', 'border-transparent');
+            });
+            const activeLink = document.querySelector(`.nav-link[onclick="showPage('${pageId}')"]`);
+            activeLink.classList.add('text-white', 'border-indigo-500');
+            activeLink.classList.remove('text-gray-400', 'border-transparent');
+            
+            // Lazy load content for pages
+            if (pageId === 'recommendations') {
+                loadAllPersonalRecommendations();
+            }
+            if (pageId === 'watchlist') {
+                loadWatchlist();
+            }
+        }
+
+        // --- Notification Function ---
+        function showNotification(message, isError = false) {
+            dom.notificationMessage.textContent = message;
+            dom.notificationBox.className = "fixed bottom-5 right-5 z-50 text-white py-3 px-6 rounded-lg shadow-lg transition-all duration-300 opacity-100 translate-y-0"; // reset
+            dom.notificationBox.classList.add(isError ? 'bg-red-600' : 'bg-green-600');
+            
+            setTimeout(() => {
+                dom.notificationBox.classList.add('opacity-0', '-translate-y-10');
+            }, 3000);
+        }
+
+        // --- API: Home/Browse/Recs ---
+        async function loadGenres() {
+            const { data } = await apiRequest(API_URLS.genres);
+            if (data) {
+                dom.genreSelect.innerHTML = '<option value="">All Genres</option>';
+                data.forEach(genre => {
+                    const option = document.createElement('option');
+                    option.value = genre.genre_id;
+                    option.textContent = genre.name;
+                    dom.genreSelect.appendChild(option);
+                });
+            }
+        }
+        
+        async function loadHomeCarousels() {
+            const [pop, recent] = await Promise.all([
+                apiRequest(API_URLS.recPopular),
+                apiRequest(API_URLS.movies + "?list=recent")
+            ]);
+            if (pop.data) {
+                dom.carouselPopular.innerHTML = pop.data.map(movie => renderMovieCard(movie, 'carousel-item')).join('');
+            }
+            if (recent.data) {
+                dom.carouselRecent.innerHTML = recent.data.map(movie => renderMovieCard(movie, 'carousel-item')).join('');
+            }
+        }
+
+        async function searchMovies(isSearchButton) {
+            // isSearchButton = true if user clicked "Search", false if loading grid in background
+            const searchTerm = dom.searchInput.value;
+            const genreId = dom.genreSelect.value;
+            
+            let url = new URL(API_URLS.movies, window.location.origin);
+            if (searchTerm) url.searchParams.append('search', searchTerm);
+            if (genreId) url.searchParams.append('genre', genreId);
+
+            const { data } = await apiRequest(url.pathname + url.search);
+            dom.movieListGrid.innerHTML = data.map(movie => renderMovieCard(movie)).join('');
+            
+            if (isSearchButton) {
+                // If user clicked search, scroll to the grid
+                dom.movieListGrid.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        
+        function renderMovieCard(movie, extraClasses = '') {
+            return `
+                <div class="bg-gray-800 rounded-lg shadow-xl overflow-hidden cursor-pointer transform hover:scale-105 transition-transform duration-300 ${extraClasses}" 
+                     onclick="showMovieDetail(${movie.movie_id})">
+                    <div class="h-64 poster-placeholder">
+                        <span>🎬</span>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold truncate">${movie.title}</h3>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-gray-400">${movie.release_year}</span>
+                            <span class="text-yellow-400 flex items-center">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                                <span class="ml-1 font-bold">${parseFloat(movie.average_rating || movie.weighted_rating || 0).toFixed(1)}</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+
+        async function showMovieDetail(movieId) {
+            appState.currentMovieId = movieId; // Store current movie ID
+            const { data: movie, error } = await apiRequest(API_URLS.movieDetails(movieId, appState.currentUser.user_id));
+            if (movie) {
+                dom.movieModalTitle.textContent = movie.title;
+                dom.movieModalBody.innerHTML = renderMovieDetail(movie);
+                dom.movieModal.classList.add('open');
+                
+                loadItemRecommendations(movieId);
+            }
+        }
+        
+        function hideModal() {
+            dom.movieModal.classList.remove('open');
+            appState.currentMovieId = null;
+        }
+        
+        function renderMovieDetail(movie) {
+            const watchlistButtonText = movie.on_watchlist ? 'Remove from Watchlist' : 'Add to Watchlist';
+            const watchlistButtonClass = movie.on_watchlist 
+                ? 'bg-red-600 hover:bg-red-700' 
+                : 'bg-indigo-600 hover:bg-indigo-700';
+
+            // --- NEW: Helper function to check stars based on user's rating ---
+            const isChecked = (starValue) => movie.user_rating === starValue ? 'checked' : '';
+
+            return `
+                <div class="flex items-center space-x-4 text-gray-400 mb-6">
+                    <span>${movie.release_year}</span>
+                    <span>&bull;</span>
+                    <span>${movie.duration_min} min</span>
+                    <span>&bull;</span>
+                    <span class="text-yellow-400 flex items-center">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                        <span class="ml-1 font-bold text-lg">${parseFloat(movie.average_rating).toFixed(1)}</span>
+                        <span class="ml-2">(${movie.total_ratings} ratings)</span>
+                    </span>
+                </div>
+                
+                <!-- NEW: Star Rating System -->
+                <div class="mb-6 text-center">
+                    <h4 class="text-lg font-semibold text-gray-300 mb-2">Your Rating</h4>
+                    <div class="star-rating" id="movie-rating-stars">
+                        <input type="radio" id="star5" name="rating-${movie.movie_id}" value="5" ${isChecked(5)} onchange="handleRating(${movie.movie_id}, 5)"><label for="star5" title="5 stars">&#9733;</label>
+                        <input type="radio" id="star4" name="rating-${movie.movie_id}" value="4" ${isChecked(4)} onchange="handleRating(${movie.movie_id}, 4)"><label for="star4" title="4 stars">&#9733;</label>
+                        <input type="radio" id="star3" name="rating-${movie.movie_id}" value="3" ${isChecked(3)} onchange="handleRating(${movie.movie_id}, 3)"><label for="star3" title="3 stars">&#9733;</label>
+                        <input type="radio" id="star2" name="rating-${movie.movie_id}" value="2" ${isChecked(2)} onchange="handleRating(${movie.movie_id}, 2)"><label for="star2" title="2 stars">&#9733;</label>
+                        <input type="radio" id="star1" name="rating-${movie.movie_id}" value="1" ${isChecked(1)} onchange="handleRating(${movie.movie_id}, 1)"><label for="star1" title="1 star">&#9733;</label>
+                    </div>
+                </div>
+                
+                <button id="watchlist-toggle-btn" onclick="toggleWatchlist(${movie.movie_id})" 
+                        class="mb-6 w-full py-3 px-6 rounded-lg text-white font-semibold transition duration-300 ${watchlistButtonClass}">
+                    ${watchlistButtonText}
+                </button>
+                
+                <p class="text-lg text-gray-300 mb-8">${movie.synopsis}</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h3 class="text-2xl font-semibold mb-3">Cast</h3>
+                        <ul class="space-y-2 max-h-48 overflow-y-auto">
+                            ${movie.actors.map(a => `<li class="text-gray-300"><span class="font-semibold text-white">${a.name}</span> as ${a.role}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-semibold mb-3">Director(s)</h3>
+                        <ul class="space-y-2">
+                            ${movie.directors.map(d => `<li class="text-gray-300 font-semibold text-white">${d.name}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-semibold mb-4">Recent Reviews</h3>
+                    <div id="reviews-list" class="space-y-4 max-h-64 overflow-y-auto">
+                        ${movie.reviews.length ? movie.reviews.map(renderReview).join('') : '<p class="text-gray-400">No reviews yet.</p>'}
+                    </div>
+                </div>
+                
+                <div id="modal-recommendations" class="mt-8 pt-6 border-t border-gray-700">
+                    <h3 class="text-2xl font-semibold mb-4">Related to this Movie</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-lg font-semibold text-indigo-300 mb-2">More from this Genre/Director</h4>
+                            <ul id="modal-rec-content" class="space-y-2"><li class="text-gray-400">Loading...</li></ul>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold text-indigo-300 mb-2">Users Also Liked</h4>
+                            <ul id="modal-rec-collab" class="space-y-2"><li class="text-gray-400">Loading...</li></ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderReview(review) {
+            return `
+                <div class="bg-gray-700 p-4 rounded-lg">
+                    <p class="text-gray-200">${review.review_text}</p>
+                    <div class="text-sm text-gray-400 mt-3 flex justify-between">
+                        <span>by <span class="font-semibold text-indigo-300">${review.username}</span></span>
+                        <span>on ${new Date(review.created_at).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadAllPersonalRecommendations() {
+            const userId = appState.currentUser.user_id;
+            const [pop, content, collab] = await Promise.all([
+                apiRequest(API_URLS.recPopular),
+                apiRequest(API_URLS.recPersonalContent(userId)),
+                apiRequest(API_URLS.recPersonalCollab(userId))
+            ]);
+
+            if (pop.data) {
+                dom.recPopularList.innerHTML = pop.data.length ? pop.data.map(renderRecItem).join('') : '<li class="text-gray-400">No popular movies found.</li>';
+            }
+            if (content.data) {
+                dom.recPersonalContentList.innerHTML = content.data.length ? content.data.map(renderRecItem).join('') : '<li class="text-gray-400">Rate some movies to get content recommendations.</li>';
+            }
+            if (collab.data) {
+                dom.recPersonalCollabList.innerHTML = collab.data.length ? collab.data.map(renderRecItem).join('') : '<li class="text-gray-400">Rate more movies to find similar users.</li>';
+            }
+        }
+        
+        async function loadItemRecommendations(movieId) {
+            const [content, collab] = await Promise.all([
+                apiRequest(API_URLS.recItemContent(movieId)),
+                apiRequest(API_URLS.recItemCollab(movieId))
+            ]);
+            
+            const modalRecContent = document.getElementById('modal-rec-content');
+            const modalRecCollab = document.getElementById('modal-rec-collab');
+
+            if (modalRecContent && content.data) {
+                modalRecContent.innerHTML = content.data.length ? content.data.map(renderRecItem).join('') : '<li class="text-gray-400">No related movies found.</li>';
+            }
+            if (modalRecCollab && collab.data) {
+                modalRecCollab.innerHTML = collab.data.length ? collab.data.map(renderRecItem).join('') : '<li class="text-gray-400">No similar user ratings found.</li>';
+            }
+        }
+        
+        function renderRecItem(movie) {
+             return `
+                <li class="flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:bg-gray-700" onclick="hideModal(); showMovieDetail(${movie.movie_id})">
+                    <div class="overflow-hidden">
+                        <p class="text-white font-medium truncate">${movie.title}</p>
+                        <p class="text-gray-400 text-sm">${movie.release_year}</p>
+                    </div>
+                    <span class="text-yellow-400 font-bold ml-auto pl-2">${parseFloat(movie.average_rating || movie.weighted_rating || 0).toFixed(1)}</span>
+                </li>
+            `;
+        }
+        
+        // --- NEW: Rating Function ---
+        async function handleRating(movieId, rating) {
+            const { data, error } = await apiRequest(API_URLS.rate, {
+                method: 'POST',
+                body: {
+                    user_id: appState.currentUser.user_id,
+                    movie_id: movieId,
+                    rating: rating
+                }
+            });
+            
+            if (data) {
+                showNotification(`You rated this movie ${rating} stars.`);
+                
+                // Re-fetch movie details to update avg rating and user's star selection
+                if (appState.currentMovieId === movieId) {
+                    const { data: movie, error } = await apiRequest(API_URLS.movieDetails(movieId, appState.currentUser.user_id));
+                    if(movie) {
+                         // Re-render only the body to avoid modal flicker and keep scroll position
+                         dom.movieModalBody.innerHTML = renderMovieDetail(movie);
+                         // Re-load recs since they might change based on new rating
+                         loadItemRecommendations(movieId);
+                    }
+                }
+            } else {
+                showNotification(error, true);
+            }
+        }
+        
+        // --- API: Watchlist ---
+        async function loadWatchlist() {
+            const { data, error } = await apiRequest(API_URLS.watchlist(appState.currentUser.user_id));
+            if (data) {
+                if (data.length === 0) {
+                    dom.watchlistGrid.innerHTML = '<p class="text-gray-400 text-lg col-span-full">Your watchlist is empty. Add movies from the Home page!</p>';
+                    return;
+                }
+                dom.watchlistGrid.innerHTML = data.map(movie => renderMovieCard(movie)).join('');
+            }
+        }
+        
+        async function toggleWatchlist(movieId) {
+            const btn = document.getElementById('watchlist-toggle-btn');
+            if (!btn) return;
+            
+            const { data, error } = await apiRequest(API_URLS.watchlistToggle, {
+                method: 'POST',
+                body: {
+                    user_id: appState.currentUser.user_id,
+                    movie_id: movieId
+                }
+            });
+            
+            if (data) {
+                if (data.status === 'added') {
+                    btn.textContent = 'Remove from Watchlist';
+                    btn.className = btn.className.replace('bg-indigo-600 hover:bg-indigo-700', 'bg-red-600 hover:bg-red-700');
+                    showNotification("Added to watchlist");
+                } else {
+                    btn.textContent = 'Add to Watchlist';
+                    btn.className = btn.className.replace('bg-red-600 hover:bg-red-700', 'bg-indigo-600 hover:bg-indigo-700');
+                    showNotification("Removed from watchlist");
+                }
+                // If we're on the watchlist page, refresh it
+                if (!document.getElementById('page-watchlist').classList.contains('hidden')) {
+                    loadWatchlist();
+                }
+            }
+        }
+
+        // --- API: Admin Functions ---
+        async function loadSchema() {
+            const { data, error } = await apiRequest(API_URLS.schema);
+            if (data) {
+                appState.currentSchema = data;
+                dom.tableSelect.innerHTML = '<option value="">Select a table...</option>';
+                Object.keys(data).forEach(tableName => {
+                    const option = document.createElement('option');
+                    option.value = tableName;
+                    option.textContent = tableName;
+                    dom.tableSelect.appendChild(option);
+                });
+            } else {
+                showNotification(error, true);
+            }
+        }
+        
+        function updateInsertForm() {
+            const tableName = dom.tableSelect.value;
+            if (!tableName || !appState.currentSchema[tableName]) {
+                dom.insertForm.innerHTML = '';
+                return;
+            }
+            
+            const columns = appState.currentSchema[tableName];
+            dom.insertForm.innerHTML = columns.map(col => {
+                if (col.Extra.includes('auto_increment')) {
+                    return '';
+                }
+                
+                let inputType = 'text';
+                if (col.Type.includes('int')) inputType = 'number';
+                if (col.Type.includes('date') || col.Type.includes('time')) inputType = 'datetime-local';
+                if (col.Type.includes('text')) {
+                     return `
+                        <div>
+                            <label for="insert-${col.Field}" class="block text-sm font-medium mb-1">${col.Field} (${col.Type})</label>
+                            <textarea id="insert-${col.Field}" name="${col.Field}" rows="3" class="w-full p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-indigo-500"></textarea>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div>
+                        <label for="insert-${col.Field}" class="block text-sm font-medium mb-1">${col.Field} (${col.Type})</label>
+                        <input type="${inputType}" id="insert-${col.Field}" name="${col.Field}" class="w-full p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-indigo-500">
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        async function submitInsert() {
+            const tableName = dom.tableSelect.value;
+            if (!tableName) {
+                showNotification("Please select a table.", true);
+                return;
+            }
+            
+            const formData = new FormData(dom.insertForm);
+            const dataToSubmit = {};
+            
+            for (const [key, value] of formData.entries()) {
+                if (value) {
+                    if (document.getElementById(`insert-${key}`).type === 'datetime-local') {
+                         dataToSubmit[key] = value.replace('T', ' ') + ':00';
+                    } else {
+                        dataToSubmit[key] = value;
+                    }
+                }
+            }
+            
+            if (Object.keys(dataToSubmit).length === 0) {
+                showNotification("Please fill in at least one field.", true);
+                return;
+            }
+            
+            const { data, error } = await apiRequest(API_URLS.insert, {
+                method: 'POST',
+                body: {
+                    table: tableName,
+                    data: dataToSubmit
+                }
+            });
+            
+            if (error) {
+                showNotification(error, true);
+            } else {
+                showNotification(data.message);
+                dom.insertForm.reset();
+            }
+        }
+        
+        async function runQuery() {
+            const query = dom.queryTextarea.value;
+            if (!query) {
+                showNotification("Query cannot be empty.", true);
+                return;
+            }
+            
+            const { data, error } = await apiRequest(API_URLS.query, {
+                method: 'POST',
+                body: { query }
+            });
+            
+            if (error) {
+                showNotification(error, true);
+                dom.queryResultsContainer.classList.add('hidden');
+            } else {
+                showNotification(data.message);
+                renderQueryResults(data.columns, data.results);
+            }
+        }
+        
+        function renderQueryResults(columns, results) {
+            if (!results || results.length === 0) {
+                dom.queryResultsHead.innerHTML = '';
+                dom.queryResultsBody.innerHTML = '<tr><td class="p-4 text-gray-400">Query returned 0 rows.</td></tr>';
+                dom.queryResultsContainer.classList.remove('hidden');
+                return;
+            }
+            
+            dom.queryResultsHead.innerHTML = `
+                <tr>
+                    ${columns.map(col => `<th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">${col}</th>`).join('')}
+                </tr>
+            `;
+            
+            dom.queryResultsBody.innerHTML = results.map(row => `
+                <tr class="hover:bg-gray-700">
+                    ${columns.map(col => `<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-200">${row[col]}</td>`).join('')}
+                </tr>
+            `).join('');
+            
+            dom.queryResultsContainer.classList.remove('hidden');
+        }
+
+        // --- API Utility ---
+        async function apiRequest(url, options = {}) {
+            try {
+                const defaultHeaders = { 'Content-Type': 'application/json' };
+                const config = {
+                    ...options,
+                    headers: { ...defaultHeaders, ...options.headers },
+                };
+                if (options.body) {
+                    config.body = JSON.stringify(options.body);
+                }
+                const response = await fetch(url, config);
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                }
+                return { data, error: null };
+            } catch (error) {
+                console.error('API Request Failed:', error);
+                showNotification(error.message, true); // Show API errors globally
+                return { data: null, error: error.message };
+            }
+        }
+    </script>
+</body>
+</html>
