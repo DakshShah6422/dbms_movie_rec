@@ -1,0 +1,6 @@
+mysql
+flask
+flask_cors
+os
+json
+datetime
