@@ -15,10 +15,10 @@ import datetime
 # -----------------
 
 DB_CONFIG = {
-    'host': 'localhost',
+    'host': 'mysql.railway.internal',
     'user': 'root',       # <-- EDIT THIS
-    'password': 'D@ksh1111', # <-- EDIT THIS
-    'database': 'movie_rec_db'
+    'password': 'XIuLVCbGtrYaHdtdfITHIsNPaRIBEFuL', # <-- EDIT THIS
+    'database': 'railway'
 }
 
 # --- Configuration ---
