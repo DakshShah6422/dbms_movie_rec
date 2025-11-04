@@ -32,7 +32,6 @@ CREATE DATABASE movie_rec_db;
 -- Select the database to use
 USE movie_rec_db;
 
-
 -- 1. users Table
 CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,

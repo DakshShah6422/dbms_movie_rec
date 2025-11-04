@@ -18,7 +18,8 @@ DB_CONFIG = {
     'host': 'yamabiko.proxy.rlwy.net',
     'user': 'root',       # <-- EDIT THIS
     'password': 'XIuLVCbGtrYaHdtdfITHIsNPaRIBEFuL', # <-- EDIT THIS
-    'database': 'railway'
+    'database': 'railway',
+    'port': 13138
 }
 
 # --- Configuration ---

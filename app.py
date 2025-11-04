@@ -18,7 +18,8 @@ DB_CONFIG = {
     'host': 'mysql.railway.internal',
     'user': 'root',       # <-- EDIT THIS
     'password': 'XIuLVCbGtrYaHdtdfITHIsNPaRIBEFuL', # <-- EDIT THIS
-    'database': 'railway'
+    'database': 'railway',
+    'port': 13138
 }
 
 # --- Database Connection Helper ---
