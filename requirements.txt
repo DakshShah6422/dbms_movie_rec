@@ -1,5 +1,4 @@
 mysql
 flask
 flask_cors
-json
 datetime
