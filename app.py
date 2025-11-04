@@ -15,10 +15,10 @@ app = Flask(__name__, static_folder=STATIC_DIR)
 # --- !! IMPORTANT !! ---
 # EDIT this dictionary to match your MySQL username and password
 DB_CONFIG = {
-    'host': 'localhost',
+    'host': 'mysql.railway.internal',
     'user': 'root',       # <-- EDIT THIS
-    'password': 'D@ksh1111', # <-- EDIT THIS
-    'database': 'movie_rec_db'
+    'password': 'XIuLVCbGtrYaHdtdfITHIsNPaRIBEFuL', # <-- EDIT THIS
+    'database': 'railway'
 }
 
 # --- Database Connection Helper ---
