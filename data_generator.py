@@ -15,7 +15,7 @@ import datetime
 # -----------------
 
 DB_CONFIG = {
-    'host': 'mysql.railway.internal',
+    'host': 'yamabiko.proxy.rlwy.net',
     'user': 'root',       # <-- EDIT THIS
     'password': 'XIuLVCbGtrYaHdtdfITHIsNPaRIBEFuL', # <-- EDIT THIS
     'database': 'railway'
